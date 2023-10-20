@@ -10,11 +10,15 @@ async function run() {
     // Get owner and repo from context of payload that triggered the action
     const { owner: currentOwner, repo: currentRepo } = context.repo;
 
+    // Get Hotfix tag
+    const isHotfix = core.getInput('hotfix', { required: false }) === false;
+    const currentLatestTag = core.getInput('latest_tag', { required: false });
+
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
 
     // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
-    const tag = tagName.replace('refs/tags/', '');
+    const tag = isHotfix ? createHotfixTag(currentLatestTag) : tagName.replace('refs/tags/', '');
     const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
     const body = core.getInput('body', { required: false });
     const draft = core.getInput('draft', { required: false }) === 'true';
@@ -60,5 +64,66 @@ async function run() {
     core.setFailed(error.message);
   }
 }
+
+/**
+ * create Hotfix tag from latest tag
+ * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a 
+ * @returns 
+ */
+async function createHotfixTag(latest_tag) {
+
+  const hotfixTag = latest_tag.split('.');
+  const hotfixTagLength = hotfixTag.length;
+
+  const newPatchVersion = await updatePatchVersion(hotfixTag[hotfixTagLength - 1]);
+
+  hotfixTag[hotfixTagLength - 1] = newPatchVersion;
+  const hotfixTagString = hotfixTag.join('.');
+
+  
+  return hotfixTagString;
+}
+
+/**
+ * create new Patch version from latest patch version
+ * @param {string} patchVersion
+ * @returns 
+ */
+function updatePatchVersion(patchVersion) {
+  const numberPart = patchVersion.match(/\d+/);
+  const alphaPart = patchVersion.match(/[a-zA-Z]+/);
+
+  const number = numberPart ? numberPart[0] : '';
+  const alpha = alphaPart ? incrementAlphabeticSequence(alphaPart[0]) : 'a';
+
+  return number + alpha;
+}
+
+function incrementAlphabeticSequence(patchVersionAlphabet) {
+  let current = patchVersionAlphabet;
+
+  if (current.endsWith('z')) {
+    const lastCharIndex = current.length - 1;
+    let carry = true;
+
+    for (let i = lastCharIndex; i >= 0 && carry; i--) {
+      if (current[i] === 'z') {
+        current = current.substring(0, i) + 'a' + current.substring(i + 1);
+      } else {
+        current = current.substring(0, i) + String.fromCharCode(current.charCodeAt(i) + 1) + current.substring(i + 1);
+        carry = false;
+      }
+    }
+
+    if (carry) {
+      current = 'a' + current;
+    }
+  } else {
+    current = current.substring(0, current.length - 1) + String.fromCharCode(current.charCodeAt(current.length - 1) + 1);
+  }
+
+  return current;
+}
+
 
 module.exports = run;
