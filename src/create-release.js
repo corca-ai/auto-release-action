@@ -149,4 +149,12 @@ function incrementPatchVersionNumericSequence(patchVersionNumber) {
   return patchVersionNumber + 1
 }
 
+/**
+ * get latest tag in repository.
+ * @returns latest tag
+ */
+function fetchLatestTag() {
+  return "v1.0.1"
+}
+
 module.exports = run;
