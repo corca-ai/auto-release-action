@@ -4,7 +4,7 @@ const fs = require('fs');
 
 
 const VERSIONING_STRATEGY = {
-  'alphanumeric' : incrementAlphabeticSequence,
+  'alphanumeric' : incrementPatchVersionAlphabeticSequence,
   'numeric' : incrementPatchVersionNumericSequence
 }
 
@@ -113,7 +113,7 @@ function seperatePatchVersion(patchVersion) {
  * @param {string} patchVersionAlphabet 
  * @returns alphabet sequence like 1a, 15ba, zcx ...
  */
-function incrementAlphabeticSequence(patchVersion) {
+function incrementPatchVersionAlphabeticSequence(patchVersion) {
   const {number, alphabet} = seperatePatchVersion(patchVersion)
   let current = alphabet
 
