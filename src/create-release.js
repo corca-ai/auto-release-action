@@ -2,6 +2,12 @@ const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
 const fs = require('fs');
 
+
+const VERSIONING_STRATEGY = {
+  'alphanumeric' : incrementAlphabeticSequence,
+  'numeric' : incrementPatchVersionNumericSequence
+}
+
 async function run() {
   try {
     // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
@@ -9,6 +15,13 @@ async function run() {
 
     // Get owner and repo from context of payload that triggered the action
     const { owner: currentOwner, repo: currentRepo } = context.repo;
+
+    // versioning strategy
+    const versioning = core.getInput('versioning', { required: false }) || 'numeric';
+
+    if(versioning != 'alphanumeric' && versioning != 'numeric') {
+      core.setFailed('versioning must be alphanumeric or numeric.');
+    }
 
     // Get Hotfix tag
     const isHotfix = core.getInput('hotfix', { required: false }) === false;
@@ -18,7 +31,7 @@ async function run() {
     const tagName = core.getInput('tag_name', { required: true });
 
     // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
-    const tag = isHotfix ? createHotfixTag(currentLatestTag) : tagName.replace('refs/tags/', '');
+    const tag = isHotfix ? createHotfixTag(currentLatestTag, versioning) : tagName.replace('refs/tags/', '');
     const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
     const body = core.getInput('body', { required: false });
     const draft = core.getInput('draft', { required: false }) === 'true';
@@ -68,39 +81,41 @@ async function run() {
 /**
  * create Hotfix tag from latest tag
  * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a 
- * @returns 
+ * @param {string} versioning 
+ * @returns Semantic version like v1.0.0 or v1.0.0a 
  */
-async function createHotfixTag(latest_tag) {
-
+async function createHotfixTag(latest_tag, versioning) {
   const hotfixTag = latest_tag.split('.');
   const hotfixTagLength = hotfixTag.length;
-
-  const newPatchVersion = await updatePatchVersion(hotfixTag[hotfixTagLength - 1]);
-
+  const newPatchVersion = VERSIONING_STRATEGY[versioning](hotfixTag[hotfixTagLength - 1]);
   hotfixTag[hotfixTagLength - 1] = newPatchVersion;
-  const hotfixTagString = hotfixTag.join('.');
-
   
-  return hotfixTagString;
+  return hotfixTag.join('.');
 }
 
 /**
- * create new Patch version from latest patch version
+ * create new Patch version from latest patch version.
  * @param {string} patchVersion
- * @returns 
+ * @returns seperated patch version likes {1, a}, {2, bc} ...
  */
-function updatePatchVersion(patchVersion) {
+function seperatePatchVersion(patchVersion) {
   const numberPart = patchVersion.match(/\d+/);
   const alphaPart = patchVersion.match(/[a-zA-Z]+/);
 
   const number = numberPart ? numberPart[0] : '';
-  const alpha = alphaPart ? incrementAlphabeticSequence(alphaPart[0]) : 'a';
+  const alpha = alphaPart ? alphaPart[0] : 'a';
 
-  return number + alpha;
+  return number, alpha;
 }
 
-function incrementAlphabeticSequence(patchVersionAlphabet) {
-  let current = patchVersionAlphabet;
+/**
+ * increase alphabet sequence.
+ * @param {string} patchVersionAlphabet 
+ * @returns alphabet sequence like 1a, 15ba, zcx ...
+ */
+function incrementAlphabeticSequence(patchVersion) {
+  const {number, alphabet} = seperatePatchVersion(patchVersion)
+  let current = alphabet
 
   if (current.endsWith('z')) {
     const lastCharIndex = current.length - 1;
@@ -122,8 +137,16 @@ function incrementAlphabeticSequence(patchVersionAlphabet) {
     current = current.substring(0, current.length - 1) + String.fromCharCode(current.charCodeAt(current.length - 1) + 1);
   }
 
-  return current;
+  return number + current;
 }
 
+/**
+ * increase numeric sequence.
+ * @param {number} patchVersionNumeric
+ * @returns integer like 1, 2, 15...
+ */
+function incrementPatchVersionNumericSequence(patchVersionNumber) {
+  return patchVersionNumber + 1
+}
 
 module.exports = run;
