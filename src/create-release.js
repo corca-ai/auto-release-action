@@ -24,14 +24,14 @@ async function run() {
     }
 
     // Get Hotfix tag
-    const isHotfix = core.getInput('hotfix', { required: false }) === false;
+    const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
     const currentLatestTag = core.getInput('latest_tag', { required: false });
 
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
 
     // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
-    const tag = isHotfix ? createHotfixTag(currentLatestTag, versioning) : tagName.replace('refs/tags/', '');
+    const tag = isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
     const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
     const body = core.getInput('body', { required: false });
     const draft = core.getInput('draft', { required: false }) === 'true';
