@@ -39,11 +39,11 @@ inputs:
     description: 'Is it hotfix release.'
     required: false
     default: 'false'
-  latest_tag:
-    description: 'Your latest release tag. If you set hotfix true, this option'll be required'
-    required: false
-  body_path_api_url:
+  body_api_url:
     description: 'If you want your body with jira release. set url Jira API url'
+    required: false
+  body_api_key:
+    description: 'Credentials for `body_api_url`'.
     required: false
 outputs:
   id:

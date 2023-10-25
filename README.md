@@ -7,12 +7,12 @@
 Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow---create-a-release) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
 ### Additional inputs
-For more information on these inputs.
+For more information on these Additional inputs.
 
 - `versioning`: Versioning strategy. You can set 'alphanumeric' or 'numeric'. 'numeric' is default.
 - `hotfix`: You can set condition for hotfix. 'false' is default.
-- `latest_tag`: Your current latest tag.
-- `body_path_api_url` : If you use release documents. Set docs api. (Jira only now)
+- `body_api_url` : If you use release documents. Set docs api. (Jira only now)
+- `body_api_key`: Credentials for `body_api_url`.
 ---
 ### Inputs
 For more information on these inputs.
@@ -56,6 +56,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Get Latest Release
+        id: get_release
+        run: |
+          latest_release=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          echo "::set-output name=latest_release::${latest_release}"
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
