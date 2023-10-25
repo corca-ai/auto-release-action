@@ -1,17 +1,20 @@
 const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
+const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
 
-
 const VERSIONING_STRATEGY = {
-  'alphanumeric' : incrementPatchVersionAlphabeticSequence,
-  'numeric' : incrementPatchVersionNumericSequence
-}
+  'alphanumeric': incrementPatchVersionAlphabeticSequence,
+  'numeric': incrementPatchVersionNumericSequence
+};
 
 async function run() {
   try {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
     // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
-    const github = new GitHub(process.env.GITHUB_TOKEN);
+    const github = new GitHub(GITHUB_TOKEN);
+    const octokit = new Octokit({ auth: GITHUB_TOKEN, });
 
     // Get owner and repo from context of payload that triggered the action
     const { owner: currentOwner, repo: currentRepo } = context.repo;
@@ -25,8 +28,16 @@ async function run() {
 
     // Get Hotfix tag
     const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
-    const currentLatestTag = core.getInput('latest_tag', { required: false });
+    const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
+    if(currentLatestTag == null) {
+      core.setFailed("Couldn't find release.");
+    }
 
+    // url and credentials for release body (Only jira)
+    const body_api_url = core.getInput('body_api_url', {required: false});
+    const body_api_key = core.getInput('body_api_key', {required: false}); 
+
+    
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
 
@@ -153,8 +164,20 @@ function incrementPatchVersionNumericSequence(patchVersionNumber) {
  * get latest tag in repository.
  * @returns latest tag
  */
-function fetchLatestTag() {
-  return "v1.0.1"
-}
+async function fetchLatestTag(owner, repo) {
+  try {
+    const response = await octokit.repos.listTags({
+      owner,
+      repo,
+    });
 
+    if (response.data.length > 0) {
+      return response.data[0].name;
+    } 
+  } catch (error) {
+    console.error('Error:', error);
+  }
+
+  return null;
+}
 module.exports = run;
