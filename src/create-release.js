@@ -3,6 +3,7 @@ const { GitHub, context } = require('@actions/github');
 const axios = require('axios');
 //const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
+const fetch = require('node-fetch');
 
 const VERSIONING_STRATEGY = {
   'alphanumeric': incrementPatchVersionAlphabeticSequence,
@@ -96,7 +97,7 @@ async function run() {
  * create Hotfix tag from latest tag
  * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a 
  * @param {string} versioning 
- * @returns Semantic version like v1.0.0 or v1.0.0a 
+ * @returns (string) Semantic version like v1.0.0 or v1.0.0a 
  */
 async function createHotfixTag(latest_tag, versioning) {
   const hotfixTag = latest_tag.split('.');
@@ -110,7 +111,7 @@ async function createHotfixTag(latest_tag, versioning) {
 /**
  * create new Patch version from latest patch version.
  * @param {string} patchVersion
- * @returns seperated patch version likes {1, a}, {2, bc} ...
+ * @returns ({string, string}) seperated patch version likes {1, a}, {2, bc} ...
  */
 function seperatePatchVersion(patchVersion) {
   const numberPart = patchVersion.match(/\d+/);
@@ -125,7 +126,7 @@ function seperatePatchVersion(patchVersion) {
 /**
  * increase alphabet sequence.
  * @param {string} patchVersionAlphabet 
- * @returns alphabet sequence like 1a, 15ba, zcx ...
+ * @returns {string} alphabet sequence like 1a, 15ba, zcx ...
  */
 function incrementPatchVersionAlphabeticSequence(patchVersion) {
   const {number, alphabet} = seperatePatchVersion(patchVersion)
@@ -157,7 +158,7 @@ function incrementPatchVersionAlphabeticSequence(patchVersion) {
 /**
  * increase numeric sequence.
  * @param {number} patchVersionNumeric
- * @returns integer like 1, 2, 15...
+ * @returns (int) like 1, 2, 15...
  */
 function incrementPatchVersionNumericSequence(patchVersionNumber) {
   return patchVersionNumber + 1
@@ -184,18 +185,55 @@ async function fetchLatestTag(owner, repo) {
   return null;
 }
 
+/**
+ * fetch release body.
+ * @param {string} url jira api url 'https://your-domain.atlassian.net'
+ * @param {string} key jira api key like 'email@example.com:<api_token>'
+ * @param {string} project your jira project name like 'TAG'
+ * @returns {string} release body from release notes.
+ */
 function fetchRelatedWork(url, key, project) {
-  const versionId = fetchVersionId();
+  const versionId = fetchVersionId(url, key);
   
-  return fetchIssuesFromVersion(versionId);
+  return fetchIssuesFromVersion(url, key, versionId);
 }
 
-function fetchVersionId() {
+/**
+ * fetch Jira release version id like 10001
+ * @param {string} url jira api url 'https://your-domain.atlassian.net'
+ * @param {string} key jira api key like 'email@example.com:<api_token>'
+ * @returns {int} Jira release version id like 10001
+ */
+function fetchVersionId(url, key) {  
+  fetch(url + `/rest/api/3/project/${projectIdOrKey}/version`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Basic ${Buffer.from(key).toString('base64')}`,
+      'Accept': 'application/json'
+    }
+  })
+  .then(response => {
+    console.log(
+      `Response: ${response.status} ${response.statusText}`
+    );
+    return response.text();
+  })
+  .then(text => console.log(text))
+  .catch(err => console.error(err));
+
+
   // Todo
   return 10019;
 }
 
-function fetchIssuesFromVersion(versionId) {
+/**
+ * fetch release version contains issues.
+ * @param {string} url jira api url 'https://your-domain.atlassian.net'
+ * @param {string} key jira api key like 'email@example.com:<api_token>'
+ * @param {int} versionId jira release(version) id.
+ * @returns {*}
+ */
+function fetchIssuesFromVersion(url, key, versionId) {
   // Todo
   return {
     version: "v1.0.1",
