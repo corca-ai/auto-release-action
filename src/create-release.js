@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
-const { Octokit } = require('@octokit/rest');
+const axios = require('axios');
+//const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
 
 const VERSIONING_STRATEGY = {
@@ -13,8 +14,8 @@ async function run() {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
     // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
+    // const octokit = new Octokit({ auth: GITHUB_TOKEN, });
     const github = new GitHub(GITHUB_TOKEN);
-    const octokit = new Octokit({ auth: GITHUB_TOKEN, });
 
     // Get owner and repo from context of payload that triggered the action
     const { owner: currentOwner, repo: currentRepo } = context.repo;
@@ -22,7 +23,7 @@ async function run() {
     // versioning strategy
     const versioning = core.getInput('versioning', { required: false }) || 'numeric';
 
-    if(versioning != 'alphanumeric' && versioning != 'numeric') {
+    if(versioning !== 'alphanumeric' && versioning !== 'numeric') {
       core.setFailed('versioning must be alphanumeric or numeric.');
     }
 
@@ -30,13 +31,15 @@ async function run() {
     const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
     const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
     if(currentLatestTag == null) {
-      core.setFailed("Couldn't find release.");
+      core.setFailed('Could not find any release.');
     }
 
     // url and credentials for release body (Only jira)
-    const body_api_url = core.getInput('body_api_url', {required: false});
-    const body_api_key = core.getInput('body_api_key', {required: false}); 
+    const bodyApiUrl = core.getInput('body_api_url', {required: false});
+    const bodyApiKey = core.getInput('body_api_key', {required: false});
+    const projectName = core.getInput('project_name', {required: false});
 
+    const bodyString = (bodyApiUrl !== '' && bodyApiKey !== '') ? fetchRelatedWork(bodyApiUrl, bodyApiKey, projectName) : '';
     
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
@@ -49,7 +52,7 @@ async function run() {
     const prerelease = core.getInput('prerelease', { required: false }) === 'true';
     const commitish = core.getInput('commitish', { required: false }) || context.sha;
 
-    const bodyPath = core.getInput('body_path', { required: false });
+    const bodyPath = core.getInput('body_path', { required: false }) || bodyString;
     const owner = core.getInput('owner', { required: false }) || currentOwner;
     const repo = core.getInput('repo', { required: false }) || currentRepo;
     let bodyFileContent = null;
@@ -180,4 +183,49 @@ async function fetchLatestTag(owner, repo) {
 
   return null;
 }
+
+function fetchRelatedWork(url, key, project) {
+  const versionId = fetchVersionId();
+  
+  return fetchIssuesFromVersion(versionId);
+}
+
+function fetchVersionId() {
+  // Todo
+  return 10019;
+}
+
+function fetchIssuesFromVersion(versionId) {
+  // Todo
+  return {
+    version: "v1.0.1",
+    issues: [
+      {
+        title: "a",
+        jiraTag: "TAG-1",
+        type: "Subtle",
+        releaseNote: "note",
+      },
+      {
+        title: "b",
+        jiraTag: "TAG-2",
+        type: "Subtle",
+        releaseNote: "note",
+      },
+      {
+        title: "b",
+        jiraTag: "TAG-3",
+        type: "버그",
+        releaseNote: null,
+      },
+      {
+        title: "b",
+        jiraTag: "TAG-4",
+        type: "버그",
+        releaseNote: null,
+      }
+    ]
+  }
+}
+
 module.exports = run;
