@@ -23,29 +23,30 @@ async function run() {
     // versioning strategy
     const versioning = core.getInput('versioning', { required: false }) || 'numeric';
 
-    if(versioning !== 'alphanumeric' && versioning !== 'numeric') {
+    if( versioning !== 'alphanumeric' && versioning !== 'numeric' ) {
       core.setFailed('versioning must be alphanumeric or numeric.');
     }
 
     // Get Hotfix tag
     const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
     const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
-    if(currentLatestTag == null) {
+    if( currentLatestTag == null ) {
       core.setFailed('Could not find any release.');
     }
 
     // url and credentials for release body (Only jira)
-    const bodyApiUrl = core.getInput('body_api_url', {required: false});
-    const bodyApiKey = core.getInput('body_api_key', {required: false});
-    const projectName = core.getInput('project_name', {required: false});
+    const bodyApiUrl = core.getInput('body_api_url', { required: false });
+    const bodyApiKey = core.getInput('body_api_key', { required: false });
+    const projectName = core.getInput('project_name', { required: false });
 
-    const bodyString = (bodyApiUrl !== '' && bodyApiKey !== '') ? fetchRelatedWork(bodyApiUrl, bodyApiKey, projectName) : '';
-    
+    const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, bodyApiKey, projectName) : '';
+
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
 
     // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
     const tag = isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
+
     const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
     const body = core.getInput('body', { required: false });
     const draft = core.getInput('draft', { required: false }) === 'true';
@@ -94,12 +95,12 @@ async function run() {
 
 /**
  * create Hotfix tag from latest tag
- * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a 
- * @param {string} versioning 
- * @returns (string) Semantic version like v1.0.0 or v1.0.0a 
+ * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a
+ * @param {string} versioning
+ * @returns (string) Semantic version like v1.0.0 or v1.0.0a
  */
-async function createHotfixTag(latest_tag, versioning) {
-  const hotfixTag = latest_tag.split('.');
+async function createHotfixTag(latestTag, versioning) {
+  const hotfixTag = latestTag.split('.');
   const hotfixTagLength = hotfixTag.length;
   const newPatchVersion = VERSIONING_STRATEGY[versioning](hotfixTag[hotfixTagLength - 1]);
   hotfixTag[hotfixTagLength - 1] = newPatchVersion;
