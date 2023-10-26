@@ -1,13 +1,12 @@
 const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
-const axios = require('axios');
-//const { Octokit } = require('@octokit/rest');
+// const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
 const fetch = require('node-fetch');
 
 const VERSIONING_STRATEGY = {
-  'alphanumeric': incrementPatchVersionAlphabeticSequence,
-  'numeric': incrementPatchVersionNumericSequence
+  alphanumeric: incrementPatchVersionAlphabeticSequence,
+  numeric: incrementPatchVersionNumericSequence
 };
 
 async function run() {
@@ -129,8 +128,8 @@ function seperatePatchVersion(patchVersion) {
  * @returns {string} alphabet sequence like 1a, 15ba, zcx ...
  */
 function incrementPatchVersionAlphabeticSequence(patchVersion) {
-  const {number, alphabet} = seperatePatchVersion(patchVersion)
-  let current = alphabet
+  const {number, alphabet} = seperatePatchVersion(patchVersion);
+  let current = alphabet;
 
   if (current.endsWith('z')) {
     const lastCharIndex = current.length - 1;
@@ -161,7 +160,7 @@ function incrementPatchVersionAlphabeticSequence(patchVersion) {
  * @returns (int) like 1, 2, 15...
  */
 function incrementPatchVersionNumericSequence(patchVersionNumber) {
-  return patchVersionNumber + 1
+  return patchVersionNumber + 1;
 }
 
 /**
@@ -208,8 +207,8 @@ function fetchVersionId(url, key) {
   fetch(url + `/rest/api/3/project/${projectIdOrKey}/version`, {
     method: 'GET',
     headers: {
-      'Authorization': `Basic ${Buffer.from(key).toString('base64')}`,
-      'Accept': 'application/json'
+      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
+      Accept: 'application/json'
     }
   })
   .then(response => {
@@ -236,30 +235,30 @@ function fetchVersionId(url, key) {
 function fetchIssuesFromVersion(url, key, versionId) {
   // Todo
   return {
-    version: "v1.0.1",
+    version: 'v1.0.1',
     issues: [
       {
-        title: "a",
-        jiraTag: "TAG-1",
-        type: "Subtle",
-        releaseNote: "note",
+        title: 'a',
+        jiraTag: 'TAG-1',
+        type: 'Subtle',
+        releaseNote: 'note',
       },
       {
-        title: "b",
-        jiraTag: "TAG-2",
-        type: "Subtle",
-        releaseNote: "note",
+        title: 'b',
+        jiraTag: 'TAG-2',
+        type: 'Subtle',
+        releaseNote: 'note',
       },
       {
-        title: "b",
-        jiraTag: "TAG-3",
-        type: "버그",
+        title: 'b',
+        jiraTag: 'TAG-3',
+        type: '버그',
         releaseNote: null,
       },
       {
-        title: "b",
-        jiraTag: "TAG-4",
-        type: "버그",
+        title: 'b',
+        jiraTag: 'TAG-4',
+        type: '버그',
         releaseNote: null,
       }
     ]
