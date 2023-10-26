@@ -193,7 +193,7 @@ async function fetchLatestTag(owner, repo) {
  * @returns {string} release body from release notes.
  */
 function fetchRelatedWork(url, key, project) {
-  const versionId = fetchVersionId(url, key);
+  const versionId = fetchVersionId(url, key, project);
   
   return fetchIssuesFromVersion(url, key, versionId);
 }
@@ -204,8 +204,8 @@ function fetchRelatedWork(url, key, project) {
  * @param {string} key jira api key like 'email@example.com:<api_token>'
  * @returns {int} Jira release version id like 10001
  */
-function fetchVersionId(url, key) {  
-  fetch(url + `/rest/api/3/project/${projectIdOrKey}/version`, {
+function fetchVersionId(url, key, projectId) {  
+  fetch(url + `/rest/api/3/project/${projectId}/version`, {
     method: 'GET',
     headers: {
       Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
@@ -213,9 +213,7 @@ function fetchVersionId(url, key) {
     }
   })
   .then(response => {
-    console.log(
-      `Response: ${response.status} ${response.statusText}`
-    );
+    console.log(`Response: ${response.status} ${response.statusText}`);
     return response.text();
   })
   .then(text => console.log(text))
@@ -234,6 +232,7 @@ function fetchVersionId(url, key) {
  * @returns {*}
  */
 function fetchIssuesFromVersion(url, key, versionId) {
+  console.log(url, key, versionId);
   // Todo
   return {
     version: 'v1.0.1',
@@ -242,28 +241,28 @@ function fetchIssuesFromVersion(url, key, versionId) {
         title: 'a',
         jiraTag: 'TAG-1',
         type: 'Subtle',
-        releaseNote: 'note',
+        releaseNote: 'note'
       },
       {
         title: 'b',
         jiraTag: 'TAG-2',
         type: 'Subtle',
-        releaseNote: 'note',
+        releaseNote: 'note'
       },
       {
         title: 'b',
         jiraTag: 'TAG-3',
         type: '버그',
-        releaseNote: null,
+        releaseNote: null
       },
       {
         title: 'b',
         jiraTag: 'TAG-4',
         type: '버그',
-        releaseNote: null,
+        releaseNote: null
       }
     ]
-  }
+  };
 }
 
 module.exports = run;
