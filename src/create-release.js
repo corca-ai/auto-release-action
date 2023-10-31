@@ -4,12 +4,6 @@ const { GitHub, context } = require('@actions/github');
 const fs = require('fs');
 const fetch = require('node-fetch');
 
-const VERSIONING_STRATEGY = {
-  alphanumeric: incrementPatchVersionAlphabeticSequence,
-  numeric: incrementPatchVersionNumericSequence
-};
-
-
 /**
  * create Hotfix tag from latest tag
  * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a
@@ -28,7 +22,7 @@ function createHotfixTag(latestTag, versioning) {
 /**
  * create new Patch version from latest patch version.
  * @param {string} patchVersion
- * @returns ({string, string}) seperated patch version likes {1, a}, {2, bc} ...
+ * @returns ({string, string}) seperated patch version likes {1, a}, {2, bc}...
  */
 function seperatePatchVersion(patchVersion) {
   const numberPart = patchVersion.match(/\d+/);
@@ -43,7 +37,7 @@ function seperatePatchVersion(patchVersion) {
 /**
  * increase alphabet sequence.
  * @param {string} patchVersionAlphabet
- * @returns {string} alphabet sequence like 1a, 15ba, zcx ...
+ * @returns {string} alphabet sequence like 1a, 15ba, zcx...
  */
 function incrementPatchVersionAlphabeticSequence(patchVersion) {
   const { number, alphabet } = seperatePatchVersion(patchVersion);
@@ -53,7 +47,7 @@ function incrementPatchVersionAlphabeticSequence(patchVersion) {
     const lastCharIndex = current.length - 1;
     let carry = true;
 
-    for (let i = lastCharIndex; i >= 0 && carry; i--) {
+    for (let i = lastCharIndex; i >= 0 && carry; i -= 1) {
       if (current[i] === 'z') {
         current = current.substring(0, i) + 'a' + current.substring(i + 1);
       } else {
@@ -214,6 +208,11 @@ function getReleaseNoteFromIssue(parentContent) {
 
   return result;
 }
+
+const VERSIONING_STRATEGY = {
+  alphanumeric: incrementPatchVersionAlphabeticSequence,
+  numeric: incrementPatchVersionNumericSequence
+};
 
 async function run() {
   try {
