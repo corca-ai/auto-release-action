@@ -53,5 +53,6 @@
         "statements": 80
       }
     }
-  }
+  },
+  "type": "module"
 }
