@@ -1,34 +1,21 @@
 # GitHub Action - Releases API
 
-**Please note:** This repository is currently unmaintained by a team of developers at GitHub. The 
-repository is here and you can use it as an example, or in Actions. However please be aware that 
-we are not going to be updating issues or pull requests on this repository.
-
-**Maintained Actions:**
-* [elgohr/Github-Release-Action](https://github.com/elgohr/Github-Release-Action)
-* [marvinpinto/action-automatic-releases](https://github.com/marvinpinto/action-automatic-releases)
-* [softprops/action-gh-release](https://github.com/softprops/action-gh-release)
-* [ncipollo/release-action](https://github.com/ncipollo/release-action)
-
-
-To reflect this state we’ve marked this repository as Archived.
-
-If you are having an issue or question about GitHub Actions then please [contact customer support](https://help.github.com/en/articles/about-github-actions#contacting-support).
-
-If you have found a security issue [please submit it here](https://hackerone.com/github).
-
 ---
-
-This GitHub Action (written in JavaScript) wraps the [GitHub Release API](https://developer.github.com/v3/repos/releases/), specifically the [Create a Release](https://developer.github.com/v3/repos/releases/#create-a-release) endpoint, to allow you to leverage GitHub Actions to create releases.
-
-<a href="https://github.com/actions/create-release"><img alt="GitHub Actions status" src="https://github.com/actions/create-release/workflows/Tests/badge.svg"></a>
 
 ## Usage
 ### Pre-requisites
 Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow---create-a-release) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
+### Additional inputs
+For more information on these Additional inputs.
+
+- `versioning`: Versioning strategy. You can set 'alphanumeric' or 'numeric'. 'numeric' is default.
+- `hotfix`: You can set condition for hotfix. 'false' is default.
+- `body_api_url` : If you use release documents. Set docs api. (Jira only now)
+- `body_api_key`: Credentials for `body_api_url`.
+---
 ### Inputs
-For more information on these inputs, see the [API Documentation](https://developer.github.com/v3/repos/releases/#input)
+For more information on these inputs.
 
 - `tag_name`: The name of the tag for this release
 - `release_name`: The name of the release
@@ -69,6 +56,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Get Latest Release
+        id: get_release
+        run: |
+          latest_release=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          echo "::set-output name=latest_release::${latest_release}"
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -86,9 +80,6 @@ jobs:
 ```
 
 This will create a [Release](https://help.github.com/en/articles/creating-releases), as well as a [`release` event](https://developer.github.com/v3/activity/events/types/#releaseevent), which could be handled by a third party service, or by GitHub Actions for additional uses, for example the [`@actions/upload-release-asset`](https://www.github.com/actions/upload-release-asset) GitHub Action. This uses the `GITHUB_TOKEN` provided by the [virtual environment](https://help.github.com/en/github/automating-your-workflow-with-github-actions/virtual-environments-for-github-actions#github_token-secret), so no new token is needed.
-
-## Contributing
-We would love you to contribute to `@actions/create-release`, pull requests are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 
 ## License
 The scripts and documentation in this project are released under the [MIT License](LICENSE)

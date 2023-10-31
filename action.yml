@@ -1,6 +1,6 @@
 name: 'Create a Release'
 description: 'Create a release for a tag in your repository'
-author: 'GitHub'
+author: 'Floodnut'
 inputs:
   tag_name:
     description: 'The name of the tag. This should come from the webhook payload, `github.GITHUB_REF` when a user pushes a new tag'
@@ -30,6 +30,24 @@ inputs:
     required: false
   repo:
     description: 'Repository on which to release.  Used only if you want to create the release on another repo'
+    required: false
+  versioning:
+    description: 'Set your versioning strategy. Choose alphanumeric or numeric'
+    required: false
+    default: 'numeric'
+  hotfix:
+    description: 'Is it hotfix release.'
+    required: false
+    default: 'false'
+  body_api_url:
+    description: 'If you want your body with jira release. set url Jira API url'
+    required: false
+  body_api_key:
+    description: 'Credentials for `body_api_url`'.
+    required: false
+  project_name:
+    required: false
+  api_root_name: 
     required: false
 outputs:
   id:
