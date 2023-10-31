@@ -23,14 +23,14 @@ async function run() {
     // versioning strategy
     const versioning = core.getInput('versioning', { required: false }) || 'numeric';
 
-    if( versioning !== 'alphanumeric' && versioning !== 'numeric' ) {
+    if (versioning !== 'alphanumeric' && versioning !== 'numeric') {
       core.setFailed('versioning must be alphanumeric or numeric.');
     }
 
     // Get Hotfix tag
     const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
     const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
-    if( currentLatestTag == null ) {
+    if (currentLatestTag == null) {
       core.setFailed('Could not find any release.');
     }
 
@@ -38,7 +38,7 @@ async function run() {
     const bodyApiUrl = core.getInput('body_api_url', { required: false });
     const bodyApiKey = core.getInput('body_api_key', { required: false });
     const projectName = core.getInput('project_name', { required: false });
-    const user = core.getInput('api_root_name', { required: false });;//'bell@corca.ai';
+    const user = core.getInput('api_root_name', { required: false });
 
     const key = getBasicDocsCredential(user, bodyApiKey);
     const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
@@ -170,9 +170,9 @@ function incrementPatchVersionNumericSequence(patchVersionNumber) {
  * get latest tag in repository.
  * @returns latest tag
  */
-async function fetchLatestTag(owner, repo) {
+function fetchLatestTag(owner, repo) {
   try {
-    const response = await octokit.repos.listTags({
+    const response = octokit.repos.listTags({
       owner,
       repo,
     });
