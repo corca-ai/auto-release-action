@@ -87,7 +87,7 @@ function incrementPatchVersionNumericSequence(patchVersionNumber) {
 
 /**
  * get latest tag in repository.
- * @returns latest tag
+ * @returns {string} latest tag
  */
 function fetchLatestTag(octokit, owner, repo) {
   try {
@@ -99,11 +99,11 @@ function fetchLatestTag(octokit, owner, repo) {
     if (response.data.length > 0) {
       return response.data[0].name;
     }
-  } catch (error) {
-    console.error('Error:', error);
-  }
 
-  return null;
+    return 'v0.0.0';
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
@@ -127,7 +127,9 @@ function fetchVersionId(url, key, projectNameOrId) {
 
       return response[response.length - 1].id;
     })
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw Error(err);
+    });
 }
 
 /**
