@@ -9,91 +9,6 @@ const VERSIONING_STRATEGY = {
   numeric: incrementPatchVersionNumericSequence
 };
 
-async function run() {
-  try {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
-    // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
-    // const octokit = new Octokit({ auth: GITHUB_TOKEN, });
-    const github = new GitHub(GITHUB_TOKEN);
-
-    // Get owner and repo from context of payload that triggered the action
-    const { owner: currentOwner, repo: currentRepo } = context.repo;
-
-    // versioning strategy
-    const versioning = core.getInput('versioning', { required: false }) || 'numeric';
-
-    if (versioning !== 'alphanumeric' && versioning !== 'numeric') {
-      core.setFailed('versioning must be alphanumeric or numeric.');
-    }
-
-    // Get Hotfix tag
-    const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
-    const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
-    if (currentLatestTag == null) {
-      core.setFailed('Could not find any release.');
-    }
-
-    // url and credentials for release body (Only jira)
-    const bodyApiUrl = core.getInput('body_api_url', { required: false });
-    const bodyApiKey = core.getInput('body_api_key', { required: false });
-    const projectName = core.getInput('project_name', { required: false });
-    const user = core.getInput('api_root_name', { required: false }); // a@a.com
-
-    const key = getBasicDocsCredential(user, bodyApiKey);
-    const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
-
-    // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
-    const tagName = core.getInput('tag_name', { required: true });
-
-    // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
-    const tag = isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
-
-    const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
-    const body = core.getInput('body', { required: false });
-    const draft = core.getInput('draft', { required: false }) === 'true';
-    const prerelease = core.getInput('prerelease', { required: false }) === 'true';
-    const commitish = core.getInput('commitish', { required: false }) || context.sha;
-
-    const bodyPath = core.getInput('body_path', { required: false }) || bodyString;
-    const owner = core.getInput('owner', { required: false }) || currentOwner;
-    const repo = core.getInput('repo', { required: false }) || currentRepo;
-    let bodyFileContent = null;
-    if (bodyPath !== '' && !!bodyPath) {
-      try {
-        bodyFileContent = fs.readFileSync(bodyPath, { encoding: 'utf8' });
-      } catch (error) {
-        core.setFailed(error.message);
-      }
-    }
-
-    // Create a release
-    // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
-    // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
-    const createReleaseResponse = await github.repos.createRelease({
-      owner,
-      repo,
-      tag_name: tag,
-      name: releaseName,
-      body: bodyFileContent || body,
-      draft,
-      prerelease,
-      target_commitish: commitish
-    });
-
-    // Get the ID, html_url, and upload URL for the created Release from the response
-    const {
-      data: { id: releaseId, html_url: htmlUrl, upload_url: uploadUrl }
-    } = createReleaseResponse;
-
-    // Set the output variables for use by other actions: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
-    core.setOutput('id', releaseId);
-    core.setOutput('html_url', htmlUrl);
-    core.setOutput('upload_url', uploadUrl);
-  } catch (error) {
-    core.setFailed(error.message);
-  }
-}
 
 /**
  * create Hotfix tag from latest tag
@@ -263,7 +178,7 @@ function fetchIssuesFromVersion(url, key, versionId) {
     return {
       isSuccess: false,
       error: err
-    }
+    };
   });
 }
 
@@ -298,6 +213,92 @@ function getReleaseNoteFromIssue(parentContent) {
   });
 
   return result;
+}
+
+async function run() {
+  try {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+    // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
+    // const octokit = new Octokit({ auth: GITHUB_TOKEN, });
+    const github = new GitHub(GITHUB_TOKEN);
+
+    // Get owner and repo from context of payload that triggered the action
+    const { owner: currentOwner, repo: currentRepo } = context.repo;
+
+    // versioning strategy
+    const versioning = core.getInput('versioning', { required: false }) || 'numeric';
+
+    if (versioning !== 'alphanumeric' && versioning !== 'numeric') {
+      core.setFailed('versioning must be alphanumeric or numeric.');
+    }
+
+    // Get Hotfix tag
+    const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
+    const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
+    if (currentLatestTag == null) {
+      core.setFailed('Could not find any release.');
+    }
+
+    // url and credentials for release body (Only jira)
+    const bodyApiUrl = core.getInput('body_api_url', { required: false });
+    const bodyApiKey = core.getInput('body_api_key', { required: false });
+    const projectName = core.getInput('project_name', { required: false });
+    const user = core.getInput('api_root_name', { required: false }); // a@a.com
+
+    const key = getBasicDocsCredential(user, bodyApiKey);
+    const bodyString = (bodyApiUrl !== '' && bodyApiKey !== '') ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
+
+    // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
+    const tagName = core.getInput('tag_name', { required: true });
+
+    // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
+    const tag = isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
+
+    const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
+    const body = core.getInput('body', { required: false });
+    const draft = core.getInput('draft', { required: false }) === 'true';
+    const prerelease = core.getInput('prerelease', { required: false }) === 'true';
+    const commitish = core.getInput('commitish', { required: false }) || context.sha;
+
+    const bodyPath = core.getInput('body_path', { required: false }) || bodyString;
+    const owner = core.getInput('owner', { required: false }) || currentOwner;
+    const repo = core.getInput('repo', { required: false }) || currentRepo;
+    let bodyFileContent = null;
+    if (bodyPath !== '' && !!bodyPath) {
+      try {
+        bodyFileContent = fs.readFileSync(bodyPath, { encoding: 'utf8' });
+      } catch (error) {
+        core.setFailed(error.message);
+      }
+    }
+
+    // Create a release
+    // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
+    // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
+    const createReleaseResponse = await github.repos.createRelease({
+      owner,
+      repo,
+      tag_name: tag,
+      name: releaseName,
+      body: bodyFileContent || body,
+      draft,
+      prerelease,
+      target_commitish: commitish
+    });
+
+    // Get the ID, html_url, and upload URL for the created Release from the response
+    const {
+      data: { id: releaseId, html_url: htmlUrl, upload_url: uploadUrl }
+    } = createReleaseResponse;
+
+    // Set the output variables for use by other actions: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
+    core.setOutput('id', releaseId);
+    core.setOutput('html_url', htmlUrl);
+    core.setOutput('upload_url', uploadUrl);
+  } catch (error) {
+    core.setFailed(error.message);
+  }
 }
 
 module.exports = run;
