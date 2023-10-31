@@ -38,8 +38,10 @@ async function run() {
     const bodyApiUrl = core.getInput('body_api_url', { required: false });
     const bodyApiKey = core.getInput('body_api_key', { required: false });
     const projectName = core.getInput('project_name', { required: false });
+    const user = core.getInput('api_root_name', { required: false });;//'bell@corca.ai';
 
-    const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, bodyApiKey, projectName) : '';
+    const key = getBasicDocsCredential(user, bodyApiKey);
+    const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
 
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
@@ -192,9 +194,12 @@ async function fetchLatestTag(owner, repo) {
  * @param {string} project your jira project name like 'TAG'
  * @returns {string} release body from release notes.
  */
-function fetchRelatedWork(url, key, project) {
-  const versionId = fetchVersionId(url, key, project);
+function fetchRelatedWork(url, key, projectNameOrId) {
+  const versionId = fetchVersionId(url, key, projectNameOrId); // get versions
   
+  if(versionId == null || versionId == -1)
+    throw Error("Invalid release version.");
+
   return fetchIssuesFromVersion(url, key, versionId);
 }
 
@@ -204,8 +209,8 @@ function fetchRelatedWork(url, key, project) {
  * @param {string} key jira api key like 'email@example.com:<api_token>'
  * @returns {int} Jira release version id like 10001
  */
-function fetchVersionId(url, key, projectId) {  
-  fetch(url + `/rest/api/3/project/${projectId}/version`, {
+function fetchVersionId(url, key, projectNameOrId) {  
+  fetch(url + `/rest/api/3/project/${projectNameOrId}/version`, {
     method: 'GET',
     headers: {
       Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
@@ -213,15 +218,12 @@ function fetchVersionId(url, key, projectId) {
     }
   })
   .then(response => {
-    console.log(`Response: ${response.status} ${response.statusText}`);
-    return response.text();
+    if(response.length == 0)
+      return -1;
+
+    return response[response.length - 1].id;
   })
-  .then(text => console.log(text))
   .catch(err => console.error(err));
-
-
-  // Todo
-  return 10019;
 }
 
 /**
@@ -232,37 +234,70 @@ function fetchVersionId(url, key, projectId) {
  * @returns {*}
  */
 function fetchIssuesFromVersion(url, key, versionId) {
-  console.log(url, key, versionId);
-  // Todo
-  return {
-    version: 'v1.0.1',
-    issues: [
-      {
-        title: 'a',
-        jiraTag: 'TAG-1',
-        type: 'Subtle',
-        releaseNote: 'note'
-      },
-      {
-        title: 'b',
-        jiraTag: 'TAG-2',
-        type: 'Subtle',
-        releaseNote: 'note'
-      },
-      {
-        title: 'b',
-        jiraTag: 'TAG-3',
-        type: '버그',
-        releaseNote: null
-      },
-      {
-        title: 'b',
-        jiraTag: 'TAG-4',
-        type: '버그',
-        releaseNote: null
-      }
-    ]
-  };
+  fetch(url + `/rest/api/3/search?project=${project} and fixVersion = ${versionId}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
+      Accept: 'application/json'
+    }
+  })
+  .then(response => {
+    let result = {
+      isSuccess: true,
+      version: versionId,
+      issues: []
+    }
+
+    response.issues.forEach((element) => {
+      result.issues.push({
+        title: element.fields.summary,
+        jiraTag: element.key,
+        type: element.fields.issueType.name,
+        releaseNote: getReleaseNoteFromIssue(element.fields.customfield_10052.content)
+      });
+    });
+
+    return result;
+  })
+  .catch(err => {
+    return {
+      isSuccess: false,
+      error: err
+    }
+  });
+}
+
+/**
+ * Get credential for basic auth.
+ * @param {string} user 
+ * @returns {string} credential
+ */
+function getBasicDocsCredential(user, apiKey) {
+  return `${user}:${apiKey}`
+}
+
+/**
+ * 
+ * @param {Array} parentContent 
+ * @returns {Array}
+ */
+function getReleaseNoteFromIssue(parentContent) {
+  let result = [];
+
+  if(parentContent == null) {
+    return result;
+  }
+
+  parentContent.forEach((element, index) => {
+    element.content.forEach((subElement) => {
+      result.push({
+        index: index,
+        text: subElement
+      });
+    });
+  });
+
+  return result;
 }
 
 module.exports = run;
