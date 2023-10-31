@@ -45,6 +45,10 @@ inputs:
   body_api_key:
     description: 'Credentials for `body_api_url`'.
     required: false
+  project_name:
+    required: false
+  api_root_name: 
+    required: false
 outputs:
   id:
     description: 'The ID of the created Release'
