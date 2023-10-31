@@ -2,7 +2,6 @@ const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
 const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
-// eslint-disable-next-line import/no-unresolved
 const fetch = require('node-fetch');
 
 /**
