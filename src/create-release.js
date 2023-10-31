@@ -1,22 +1,31 @@
 const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
-// const { Octokit } = require('@octokit/rest');
+const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
+// eslint-disable-next-line import/no-unresolved
 const fetch = require('node-fetch');
 
 /**
- * create Hotfix tag from latest tag
- * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a
- * @param {string} versioning
- * @returns (string) Semantic version like v1.0.0 or v1.0.0a
+ * a
+ * @param {Array} parentContent
+ * @returns {Array}
  */
-function createHotfixTag(latestTag, versioning) {
-  const hotfixTag = latestTag.split('.');
-  const hotfixTagLength = hotfixTag.length;
-  const newPatchVersion = VERSIONING_STRATEGY[versioning](hotfixTag[hotfixTagLength - 1]);
-  hotfixTag[hotfixTagLength - 1] = newPatchVersion;
+function getReleaseNoteFromIssue(parentContent) {
+  const result = [];
 
-  return hotfixTag.join('.');
+  if (parentContent == null) {
+    return result;
+  }
+
+  parentContent.forEach(element => {
+    element.content.forEach(subElement => {
+      result.push({
+        text: subElement
+      });
+    });
+  });
+
+  return result;
 }
 
 /**
@@ -31,7 +40,7 @@ function seperatePatchVersion(patchVersion) {
   const number = numberPart ? numberPart[0] : '';
   const alpha = alphaPart ? alphaPart[0] : 'a';
 
-  return number, alpha;
+  return { number, alpha };
 }
 
 /**
@@ -49,7 +58,7 @@ function incrementPatchVersionAlphabeticSequence(patchVersion) {
 
     for (let i = lastCharIndex; i >= 0 && carry; i -= 1) {
       if (current[i] === 'z') {
-        current = current.substring(0, i) + 'a' + current.substring(i + 1);
+        current = `${current.substring(0, i)}a${current.substring(i + 1)}`;
       } else {
         current = current.substring(0, i) + String.fromCharCode(current.charCodeAt(i) + 1) + current.substring(i + 1);
         carry = false;
@@ -57,10 +66,12 @@ function incrementPatchVersionAlphabeticSequence(patchVersion) {
     }
 
     if (carry) {
-      current = 'a' + current;
+      current = `a${current}`;
     }
   } else {
-    current = current.substring(0, current.length - 1) + String.fromCharCode(current.charCodeAt(current.length - 1) + 1);
+    current = `${current.substring(0, current.length - 1)}${String.fromCharCode(
+      current.charCodeAt(current.length - 1) + 1
+    )}`;
   }
 
   return number + current;
@@ -79,21 +90,84 @@ function incrementPatchVersionNumericSequence(patchVersionNumber) {
  * get latest tag in repository.
  * @returns latest tag
  */
-function fetchLatestTag(owner, repo) {
+function fetchLatestTag(octokit, owner, repo) {
   try {
     const response = octokit.repos.listTags({
       owner,
-      repo,
+      repo
     });
 
     if (response.data.length > 0) {
       return response.data[0].name;
-    } 
+    }
   } catch (error) {
     console.error('Error:', error);
   }
 
   return null;
+}
+
+/**
+ * fetch Jira release version id like 10001
+ * @param {string} url jira api url 'https://your-domain.atlassian.net'
+ * @param {string} key jira api key like 'email@example.com:<api_token>'
+ * @returns {int} Jira release version id like 10001
+ */
+function fetchVersionId(url, key, projectNameOrId) {
+  fetch(`${url}/rest/api/3/project/${projectNameOrId}/version`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
+      Accept: 'application/json'
+    }
+  })
+    .then(response => {
+      if (response.length === 0) {
+        return -1;
+      }
+
+      return response[response.length - 1].id;
+    })
+    .catch(err => console.error(err));
+}
+
+/**
+ * fetch release version contains issues.
+ * @param {string} url jira api url 'https://your-domain.atlassian.net'
+ * @param {string} key jira api key like 'email@example.com:<api_token>'
+ * @param {int} versionId jira release(version) id.
+ * @returns {*}
+ */
+function fetchIssuesFromVersion(url, key, project, versionId) {
+  fetch(`${url}/rest/api/3/search?project=${project} and fixVersion = ${versionId}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
+      Accept: 'application/json'
+    }
+  })
+    .then(response => {
+      const result = {
+        isSuccess: true,
+        version: versionId,
+        issues: []
+      };
+
+      response.issues.forEach(element => {
+        result.issues.push({
+          title: element.fields.summary,
+          jiraTag: element.key,
+          type: element.fields.issueType.name,
+          releaseNote: getReleaseNoteFromIssue(element.fields.customfield_10052.content)
+        });
+      });
+
+      return result;
+    })
+    .catch(err => ({
+      isSuccess: false,
+      error: err
+    }));
 }
 
 /**
@@ -105,108 +179,21 @@ function fetchLatestTag(owner, repo) {
  */
 function fetchRelatedWork(url, key, projectNameOrId) {
   const versionId = fetchVersionId(url, key, projectNameOrId); // get versions
-  
-  if(versionId == null || versionId == -1)
-    throw Error("Invalid release version.");
 
-  return fetchIssuesFromVersion(url, key, versionId);
-}
+  if (versionId === null || versionId === -1) {
+    throw Error('Invalid release version.');
+  }
 
-/**
- * fetch Jira release version id like 10001
- * @param {string} url jira api url 'https://your-domain.atlassian.net'
- * @param {string} key jira api key like 'email@example.com:<api_token>'
- * @returns {int} Jira release version id like 10001
- */
-function fetchVersionId(url, key, projectNameOrId) {  
-  fetch(url + `/rest/api/3/project/${projectNameOrId}/version`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
-      Accept: 'application/json'
-    }
-  })
-  .then(response => {
-    if(response.length == 0)
-      return -1;
-
-    return response[response.length - 1].id;
-  })
-  .catch(err => console.error(err));
-}
-
-/**
- * fetch release version contains issues.
- * @param {string} url jira api url 'https://your-domain.atlassian.net'
- * @param {string} key jira api key like 'email@example.com:<api_token>'
- * @param {int} versionId jira release(version) id.
- * @returns {*}
- */
-function fetchIssuesFromVersion(url, key, versionId) {
-  fetch(url + `/rest/api/3/search?project=${project} and fixVersion = ${versionId}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Basic ${Buffer.from(key).toString('base64')}`,
-      Accept: 'application/json'
-    }
-  })
-  .then(response => {
-    let result = {
-      isSuccess: true,
-      version: versionId,
-      issues: []
-    }
-
-    response.issues.forEach((element) => {
-      result.issues.push({
-        title: element.fields.summary,
-        jiraTag: element.key,
-        type: element.fields.issueType.name,
-        releaseNote: getReleaseNoteFromIssue(element.fields.customfield_10052.content)
-      });
-    });
-
-    return result;
-  })
-  .catch(err => {
-    return {
-      isSuccess: false,
-      error: err
-    };
-  });
+  return fetchIssuesFromVersion(url, key, projectNameOrId, versionId);
 }
 
 /**
  * Get credential for basic auth.
- * @param {string} user 
+ * @param {string} user
  * @returns {string} credential
  */
 function getBasicDocsCredential(user, apiKey) {
   return `${user}:${apiKey}`;
-}
-
-/**
- * 
- * @param {Array} parentContent 
- * @returns {Array}
- */
-function getReleaseNoteFromIssue(parentContent) {
-  const result = [];
-
-  if (parentContent == null) {
-    return result;
-  }
-
-  parentContent.forEach((element, index) => {
-    element.content.forEach(subElement => {
-      result.push({
-        index: index,
-        text: subElement
-      });
-    });
-  });
-
-  return result;
 }
 
 const VERSIONING_STRATEGY = {
@@ -214,12 +201,27 @@ const VERSIONING_STRATEGY = {
   numeric: incrementPatchVersionNumericSequence
 };
 
+/**
+ * create Hotfix tag from latest tag
+ * @param {string} latest_tag MAJOR.MINOR.PATCH like v1.0.0 or v1.0.0a
+ * @param {string} versioning
+ * @returns (string) Semantic version like v1.0.0 or v1.0.0a
+ */
+function createHotfixTag(latestTag, versioning) {
+  const hotfixTag = latestTag.split('.');
+  const hotfixTagLength = hotfixTag.length;
+  const newPatchVersion = VERSIONING_STRATEGY[versioning](hotfixTag[hotfixTagLength - 1]);
+  hotfixTag[hotfixTagLength - 1] = newPatchVersion;
+
+  return hotfixTag.join('.');
+}
+
 async function run() {
   try {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const { GITHUB_TOKEN } = process.env;
 
     // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
-    // const octokit = new Octokit({ auth: GITHUB_TOKEN, });
+    const octokit = new Octokit({ auth: GITHUB_TOKEN });
     const github = new GitHub(GITHUB_TOKEN);
 
     // Get owner and repo from context of payload that triggered the action
@@ -234,7 +236,7 @@ async function run() {
 
     // Get Hotfix tag
     const isHotfix = core.getInput('hotfix', { required: false }) === 'false';
-    const currentLatestTag = fetchLatestTag(currentOwner, currentRepo);
+    const currentLatestTag = fetchLatestTag(octokit, currentOwner, currentRepo);
     if (currentLatestTag == null) {
       core.setFailed('Could not find any release.');
     }
@@ -246,13 +248,14 @@ async function run() {
     const user = core.getInput('api_root_name', { required: false }); // a@a.com
 
     const key = getBasicDocsCredential(user, bodyApiKey);
-    const bodyString = (bodyApiUrl !== '' && bodyApiKey !== '') ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
+    const bodyString = bodyApiUrl !== '' && bodyApiKey !== '' ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
 
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
     const tagName = core.getInput('tag_name', { required: true });
 
     // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/v1.10.15' to 'v1.10.15'
-    const tag = isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
+    const tag =
+      isHotfix === 'false' ? tagName.replace('refs/tags/', '') : createHotfixTag(currentLatestTag, versioning);
 
     const releaseName = core.getInput('release_name', { required: false }).replace('refs/tags/', '');
     const body = core.getInput('body', { required: false });
