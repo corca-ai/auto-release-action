@@ -101,12 +101,12 @@ async function run() {
  * @param {string} versioning
  * @returns (string) Semantic version like v1.0.0 or v1.0.0a
  */
-async function createHotfixTag(latestTag, versioning) {
+function createHotfixTag(latestTag, versioning) {
   const hotfixTag = latestTag.split('.');
   const hotfixTagLength = hotfixTag.length;
   const newPatchVersion = VERSIONING_STRATEGY[versioning](hotfixTag[hotfixTagLength - 1]);
   hotfixTag[hotfixTagLength - 1] = newPatchVersion;
-  
+
   return hotfixTag.join('.');
 }
 
@@ -127,11 +127,11 @@ function seperatePatchVersion(patchVersion) {
 
 /**
  * increase alphabet sequence.
- * @param {string} patchVersionAlphabet 
+ * @param {string} patchVersionAlphabet
  * @returns {string} alphabet sequence like 1a, 15ba, zcx ...
  */
 function incrementPatchVersionAlphabeticSequence(patchVersion) {
-  const {number, alphabet} = seperatePatchVersion(patchVersion);
+  const { number, alphabet } = seperatePatchVersion(patchVersion);
   let current = alphabet;
 
   if (current.endsWith('z')) {
@@ -273,7 +273,7 @@ function fetchIssuesFromVersion(url, key, versionId) {
  * @returns {string} credential
  */
 function getBasicDocsCredential(user, apiKey) {
-  return `${user}:${apiKey}`
+  return `${user}:${apiKey}`;
 }
 
 /**
@@ -282,14 +282,14 @@ function getBasicDocsCredential(user, apiKey) {
  * @returns {Array}
  */
 function getReleaseNoteFromIssue(parentContent) {
-  let result = [];
+  const result = [];
 
-  if(parentContent == null) {
+  if (parentContent == null) {
     return result;
   }
 
   parentContent.forEach((element, index) => {
-    element.content.forEach((subElement) => {
+    element.content.forEach(subElement => {
       result.push({
         index: index,
         text: subElement
