@@ -38,7 +38,7 @@ async function run() {
     const bodyApiUrl = core.getInput('body_api_url', { required: false });
     const bodyApiKey = core.getInput('body_api_key', { required: false });
     const projectName = core.getInput('project_name', { required: false });
-    const user = core.getInput('api_root_name', { required: false });
+    const user = core.getInput('api_root_name', { required: false }); // a@a.com
 
     const key = getBasicDocsCredential(user, bodyApiKey);
     const bodyString = ( bodyApiUrl !== '' && bodyApiKey !== '' ) ? fetchRelatedWork(bodyApiUrl, key, projectName) : '';
